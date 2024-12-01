@@ -46,7 +46,7 @@ class MainActivity : AppCompatActivity() {
     private fun fetchAnimeData(searchQuery: String, callback: (String) -> Unit) {
         val query = """
             {
-              animes(search: "$searchQuery", limit: 1, kind: "!special") {
+              animes(search: "$searchQuery", limit: 1, kind: "!special,!ona") {
                 id
                 name
                 russian
@@ -102,7 +102,10 @@ class MainActivity : AppCompatActivity() {
                                     val relatedInfo = async {
                                         fetchRelatedAnimeData(animeName)
                                     }
-                                    add(relatedInfo.await())
+                                    if (relatedInfo.await() != "")
+                                    {
+                                        add(relatedInfo.await())
+                                    }
                                 }
                             }
                         }
@@ -155,7 +158,7 @@ class MainActivity : AppCompatActivity() {
     private fun fetchRelatedAnimeData(animeName: String): String {
         val query = """
         {
-          animes(search: "$animeName", limit: 1, kind: "!special") {
+          animes(search: "$animeName", limit: 1, kind: "!special,!ona") {
             episodes
             russian
             status
@@ -173,6 +176,7 @@ class MainActivity : AppCompatActivity() {
         if (response.isSuccessful) {
             val responseData = response.body?.string()
             if (responseData != null) {
+                try {
                 val jsonObject = JSONObject(responseData)
 
                 val animeData = jsonObject.getJSONObject("data")
@@ -184,6 +188,9 @@ class MainActivity : AppCompatActivity() {
                 val status = animeData.optString("status", "N/A")
 
                 return "$russian: $status: $episodes"
+                } catch (e: JSONException) {
+                    return ""
+                }
             } else {
                 return "Anime gathering err."
             }
