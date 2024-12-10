@@ -46,7 +46,7 @@ class MainActivity : AppCompatActivity() {
     private fun fetchAnimeData(searchQuery: String, callback: (String) -> Unit) {
         val query = """
             {
-              animes(search: "$searchQuery", limit: 1, kind: "!special,!ona") {
+              animes(search: "$searchQuery", limit: 1, kind: "movie,ova,tv") {
                 id
                 name
                 russian
@@ -81,7 +81,7 @@ class MainActivity : AppCompatActivity() {
                     val animeData = jsonObject.getJSONObject("data")
                         .getJSONArray("animes")
                         .getJSONObject(0)
-
+                    //TODO:status processing
                     val name = animeData.optString("name", "N/A")
                     val russian = animeData.optString("russian", "N/A")
                     val english = animeData.optString("english", "N/A")
@@ -111,12 +111,15 @@ class MainActivity : AppCompatActivity() {
                         }
                     } ?: emptyList()
 
-                    val viewingTime = (episodes * duration) / 60
+                    val viewingTime = (episodes * duration).toDouble() / 60
+                    val formattedViewingTime = String.format("%.1f", viewingTime)
+
                     val fandubberSupport = if (fandubbers.contains("AniLibria")) {
                         "AniLibria"
                     } else {
                         "Nah AniLibria"
                     }
+
 
                     val result = buildString {
                         append("""
@@ -127,7 +130,7 @@ class MainActivity : AppCompatActivity() {
 
                             Ep_amount: $episodes
                             Duration: $duration minutes
-                            Approx: $viewingTime hours ~~
+                            Approx: $formattedViewingTime hours ~~
 
                             $fandubberSupport
 
@@ -153,12 +156,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    //TODO: Fix duration<5min~~ don`t add this shit to list
-
     private fun fetchRelatedAnimeData(animeName: String): String {
         val query = """
         {
-          animes(search: "$animeName", limit: 1, kind: "!special,!ona") {
+          animes(search: "$animeName", limit: 1, kind: "") {
+            kind
             episodes
             russian
             status
@@ -186,6 +188,9 @@ class MainActivity : AppCompatActivity() {
                 val episodes = animeData.optString("episodes", "N/A")
                 val russian = animeData.optString("russian", "N/A")
                 val status = animeData.optString("status", "N/A")
+                val kind = animeData.optString("kind", "N/A")
+                if (kind != "movie" && kind != "ova" && kind != "tv")
+                    return ""
 
                 return "$russian: $status: $episodes"
                 } catch (e: JSONException) {
