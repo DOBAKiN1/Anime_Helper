@@ -3,8 +3,10 @@ package com.example.animehelper
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +24,7 @@ class MainActivity : AppCompatActivity() {
     private val client = OkHttpClient()
     private val apiUrl = "https://shikimori.one/api/graphql"
     private val mediaType = "application/json".toMediaType()
+    private val selectedFilters = mutableSetOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,21 +32,49 @@ class MainActivity : AppCompatActivity() {
 
         val searchField: EditText = findViewById(R.id.searchField)
         val searchButton: Button = findViewById(R.id.searchButton)
+        val filtersButton: Button = findViewById(R.id.filtersButton)
         val resultText: TextView = findViewById(R.id.resultText)
 
         searchButton.setOnClickListener {
             val query = searchField.text.toString()
             if (query.isNotBlank()) {
-                fetchAnimeData(query) { result ->
+                searchButton.isEnabled = false
+                fetchAnimeData(query, selectedFilters.toList()) { result ->
                     runOnUiThread {
+                        searchButton.isEnabled = true
                         resultText.text = result
                     }
                 }
             }
         }
+
+        filtersButton.setOnClickListener {
+            val filterOptions = arrayOf("Movie", "OVA", "TV", "Special")
+            val checkedItems = BooleanArray(filterOptions.size) { index ->
+                selectedFilters.contains(filterOptions[index].lowercase())
+            }
+
+            AlertDialog.Builder(this).apply {
+                setTitle("Select Filters")
+                setMultiChoiceItems(filterOptions, checkedItems) { _, which, isChecked ->
+                    val filter = filterOptions[which].lowercase()
+                    if (isChecked) {
+                        selectedFilters.add(filter)
+                    } else {
+                        selectedFilters.remove(filter)
+                    }
+                }
+                setPositiveButton("Apply") { dialog, _ ->
+                    dialog.dismiss()
+                }
+                setNegativeButton("Cancel") { dialog, _ ->
+                    dialog.dismiss()
+                }
+            }.show()
+        }
     }
 
-    private fun fetchAnimeData(searchQuery: String, callback: (String) -> Unit) {
+    private fun fetchAnimeData(searchQuery: String, selectedTypes: List<String>, callback: (String) -> Unit) {
         val query = """
             {
               animes(search: "$searchQuery", limit: 1, kind: "movie,ova,tv") {
@@ -100,7 +131,7 @@ class MainActivity : AppCompatActivity() {
                                 if (relatedAnime != null) {
                                     val animeName = relatedAnime.optString("name", "Без имени")
                                     val relatedInfo = async {
-                                        fetchRelatedAnimeData(animeName)
+                                        fetchRelatedAnimeData(animeName, selectedTypes)
                                     }
                                     if (relatedInfo.await() != "")
                                     {
@@ -156,7 +187,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun fetchRelatedAnimeData(animeName: String): String {
+    private fun fetchRelatedAnimeData(animeName: String, selectedTypes: List<String>): String {
         val query = """
         {
           animes(search: "$animeName", limit: 1, kind: "") {
@@ -174,34 +205,35 @@ class MainActivity : AppCompatActivity() {
             .post(requestBody)
             .build()
 
-        val response = client.newCall(request).execute()
-        if (response.isSuccessful) {
-            val responseData = response.body?.string()
-            if (responseData != null) {
-                try {
-                val jsonObject = JSONObject(responseData)
+        client.newCall(request).execute().use { response -> //
+            if (response.isSuccessful) {
+                val responseData = response.body?.string()
+                if (responseData != null) {
+                    return try {
+                        val jsonObject = JSONObject(responseData)
+                        val animeData = jsonObject.getJSONObject("data")
+                            .getJSONArray("animes")
+                            .getJSONObject(0)
 
-                val animeData = jsonObject.getJSONObject("data")
-                    .getJSONArray("animes")
-                    .getJSONObject(0)
+                        val episodes = animeData.optString("episodes", "N/A")
+                        val russian = animeData.optString("russian", "N/A")
+                        val status = animeData.optString("status", "N/A")
+                        val kind = animeData.optString("kind", "N/A")
 
-                val episodes = animeData.optString("episodes", "N/A")
-                val russian = animeData.optString("russian", "N/A")
-                val status = animeData.optString("status", "N/A")
-                val kind = animeData.optString("kind", "N/A")
-                if (kind != "movie" && kind != "ova" && kind != "tv")
-                    return ""
-
-                return "$russian: $status: $episodes"
-                } catch (e: JSONException) {
-                    return ""
+                        if (kind in selectedTypes) {
+                            return "$russian: $status: $episodes"
+                        } else {
+                            return ""
+                        }
+                    } catch (e: JSONException) {
+                        "Parsing error: ${e.message}"
+                    }
+                } else {
+                    return "Anime gathering error."
                 }
             } else {
-                return "Anime gathering err."
+                return "Error: ${response.message}"
             }
-
-        } else {
-            return "Err: ${response.message}"
         }
     }
 }

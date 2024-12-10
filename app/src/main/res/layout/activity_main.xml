@@ -10,18 +10,24 @@
         android:id="@+id/searchField"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Введите название аниме" />
+        android:hint="Anime title here" />
+
+    <Button
+        android:id="@+id/filtersButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Filters" />
 
     <Button
         android:id="@+id/searchButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Поиск" />
+        android:text="Search" />
 
     <TextView
         android:id="@+id/resultText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingTop="16dp"
-        android:text="Результат отобразится здесь" />
+        android:text="Results will be displayed here" />
 </LinearLayout>
