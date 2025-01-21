@@ -6,11 +6,14 @@
     android:orientation="vertical"
     android:padding="16dp">
 
-    <EditText
+    <AutoCompleteTextView
         android:id="@+id/searchField"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Anime title here" />
+        android:hint="Anime title here"
+        android:drawableEnd="@drawable/ic_clear_white"
+        android:paddingEnd="8dp"
+        android:inputType="text" />
 
     <Button
         android:id="@+id/filtersButton"
